@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate, login, logout, REDIRECT_FIELD_NAME
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.views import logout as Signout
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic import TemplateView
 from django.views.generic.list import ListView
 from django.contrib import messages
@@ -69,6 +70,8 @@ class ProfileListView(ListView):
         queryset = profile_model.objects.get_visible_profiles(self.request.user).select_related()
         return queryset
 
+
+@sensitive_post_parameters('password1', 'password2')
 @secure_required
 def signup(request, signup_form=SignupForm,
            template_name='userena/signup_form.html', success_url=None,
@@ -386,6 +389,8 @@ def disabled_account(request, username, template_name, extra_context=None):
     return ExtraContextTemplateView.as_view(template_name=template_name,
                                             extra_context=extra_context)(request)
 
+
+@sensitive_post_parameters('password')
 @secure_required
 def signin(request, auth_form=AuthenticationForm,
            template_name='userena/signin_form.html',
@@ -563,6 +568,8 @@ def email_change(request, username, email_form=ChangeEmailForm,
     return ExtraContextTemplateView.as_view(template_name=template_name,
                                             extra_context=extra_context)(request)
 
+
+@sensitive_post_parameters('old_password', 'new_password1', 'new_password2')
 @secure_required
 @permission_required_or_403('change_user', (get_user_model(), 'username', 'username'))
 def password_change(request, username, template_name='userena/password_form.html',
