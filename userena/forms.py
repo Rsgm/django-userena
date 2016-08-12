@@ -45,6 +45,10 @@ class SignupForm(forms.Form):
                                                            render_value=False),
                                 label=_("Repeat password"))
 
+    def __init__(self, redirect=None, *args, **kwargs):
+        self.redirect = redirect
+        super(SignupForm, self).__init__(*args, **kwargs)
+
     def clean_username(self):
         """
         Validate that the username is alphanumeric and is not already in use.
@@ -94,7 +98,8 @@ class SignupForm(forms.Form):
                                                      email,
                                                      password,
                                                      not userena_settings.USERENA_ACTIVATION_REQUIRED,
-                                                     userena_settings.USERENA_ACTIVATION_REQUIRED)
+                                                     userena_settings.USERENA_ACTIVATION_REQUIRED,
+                                                     redirect=self.redirect)
         return new_user
 
 class SignupFormOnlyEmail(SignupForm):

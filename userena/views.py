@@ -75,13 +75,14 @@ class ProfileListView(ListView):
 @secure_required
 def signup(request, signup_form=SignupForm,
            template_name='userena/signup_form.html', success_url=None,
-           extra_context=None):
+           extra_context=None, redirect_field_name=REDIRECT_FIELD_NAME):
     """
     Signup of an account.
 
     Signup requiring a username, email and password. After signup a user gets
     an email with an activation link used to activate their account. After
-    successful signup redirects to ``success_url``.
+    successful signup redirects to the ``REDIRECT_FIELD_NAME`` query parameter
+    if provided, otherwise ``success_url``.
 
     :param signup_form:
         Form that will be used to sign a user. Defaults to userena's
@@ -101,10 +102,16 @@ def signup(request, signup_form=SignupForm,
         context. Defaults to a dictionary with a ``form`` key containing the
         ``signup_form``.
 
+    :param redirect_field_name:
+        String containing the name of the field that contains a redirect url.
+        Defaults to ``next``.
+
     **Context**
 
     ``form``
         Form supplied by ``signup_form``.
+    ``next``
+        Next supplied by a query parameter.
 
     """
     # If signup is disabled, return 403
@@ -118,15 +125,17 @@ def signup(request, signup_form=SignupForm,
 
     form = signup_form()
 
+    redirect_url = request.GET.get(redirect_field_name, request.POST.get(redirect_field_name, None))
+
     if request.method == 'POST':
-        form = signup_form(request.POST, request.FILES)
+        form = signup_form(redirect=redirect_url, data=request.POST, files=request.FILES)
+
         if form.is_valid():
             user = form.save()
 
             # Send the signup complete signal
             userena_signals.signup_complete.send(sender=None,
                                                  user=user)
-
 
             if success_url: redirect_to = success_url
             else: redirect_to = reverse('userena_signup_complete',
@@ -141,10 +150,18 @@ def signup(request, signup_form=SignupForm,
                 user = authenticate(identification=user.email, check_password=False)
                 login(request, user)
 
+                # since we signed in the user and have no more information to display,
+                # we can redirect the user to a requested page
+                if redirect_url:
+                    redirect_to = redirect_url
+
             return redirect(redirect_to)
 
     if not extra_context: extra_context = dict()
-    extra_context['form'] = form
+    extra_context.update({
+        'form': form,
+        'next': redirect_url,
+    })
     return ExtraContextTemplateView.as_view(template_name=template_name,
                                             extra_context=extra_context)(request)
 
@@ -152,17 +169,19 @@ def signup(request, signup_form=SignupForm,
 def activate(request, activation_key,
              template_name='userena/activate_fail.html',
              retry_template_name='userena/activate_retry.html',
-             success_url=None, extra_context=None):
+             success_url=None, extra_context=None,
+             redirect_field_name=REDIRECT_FIELD_NAME):
     """
     Activate a user with an activation key.
 
     The key is a SHA1 string. When the SHA1 is found with an
     :class:`UserenaSignup`, the :class:`User` of that account will be
     activated.  After a successful activation the view will redirect to
-    ``success_url``.  If the SHA1 is not found, the user will be shown the
-    ``template_name`` template displaying a fail message.
-    If the SHA1 is found but expired, ``retry_template_name`` is used instead,
-    so the user can proceed to :func:`activate_retry` to get a new activation key.
+    the ``REDIRECT_FIELD_NAME`` query parameter if provided, otherwise
+    ``success_url``. If the SHA1 is not found, the user will be shown the
+    ``template_name`` template displaying a fail message. If the SHA1 is found
+    but expired, ``retry_template_name`` is used instead, so the user can
+    proceed to :func:`activate_retry` to get a new activation key.
 
     :param activation_key:
         String of a SHA1 string of 40 characters long. A SHA1 is always 160bit
@@ -204,7 +223,10 @@ def activate(request, activation_key,
                     messages.success(request, _('Your account has been activated and you have been signed in.'),
                                      fail_silently=True)
 
-                if success_url: redirect_to = success_url % {'username': user.username }
+                redirect_to = request.GET.get(redirect_field_name, None)
+
+                if redirect_to: pass
+                elif success_url: redirect_to = success_url % {'username': user.username }
                 else: redirect_to = reverse('userena_profile_detail',
                                             kwargs={'username': user.username})
                 return redirect(redirect_to)

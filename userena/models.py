@@ -156,11 +156,11 @@ class UserenaSignup(models.Model):
             return True
         return False
 
-    def send_activation_email(self):
+    def send_activation_email(self, redirect=None):
         """
         Sends a activation email to the user.
 
-        This email is send when the user wants to activate their newly created
+        This email is sent when the user wants to activate their newly created
         user.
 
         """
@@ -169,7 +169,8 @@ class UserenaSignup(models.Model):
                   'protocol': get_protocol(),
                   'activation_days': userena_settings.USERENA_ACTIVATION_DAYS,
                   'activation_key': self.activation_key,
-                  'site': Site.objects.get_current()}
+                  'site': Site.objects.get_current(),
+                  'redirect': redirect}
 
         mailer = UserenaConfirmationMail(context=context)
         mailer.generate_mail("activation")

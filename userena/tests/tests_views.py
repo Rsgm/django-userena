@@ -1,7 +1,7 @@
 import re
 
 from datetime import datetime, timedelta
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, REDIRECT_FIELD_NAME
 from django.core.urlresolvers import reverse
 from django.core import mail
 from django.contrib.auth.forms import PasswordChangeForm
@@ -35,6 +35,30 @@ class UserenaViewsTests(TestCase):
 
         user = User.objects.get(email='alice@example.com')
         self.assertTrue(user.is_active)
+
+    def test_activation_redirect(self):
+        """ A ``GET`` to the activation view with redirect parameter """
+
+        redirect = '/some/url/'
+
+        # First, register an account.
+        self.client.post('%s?%s=%s' % (reverse('userena_signup'), REDIRECT_FIELD_NAME, redirect),
+                         data={'username': 'alice',
+                               'email': 'alice@example.com',
+                               'password1': 'swordfish',
+                               'password2': 'swordfish',
+                               'tos': 'on'})
+        user = User.objects.get(email='alice@example.com')
+
+        # Send a GET request with the redirect parameter to the url
+        response = self.client.get(
+            '%s?%s=%s' % (reverse('userena_activate', kwargs={'activation_key': user.userena_signup.activation_key}),
+                          REDIRECT_FIELD_NAME, redirect))
+
+        self.assertTrue(response.get('Location').endswith(redirect))
+        
+        if hasattr(response, 'url'):
+            self.assertTrue(response.url.endswith(redirect))
 
     def test_activation_expired_retry(self):
         """ A ``GET`` to the activation view when activation link is expired """

@@ -36,7 +36,7 @@ class UserenaManager(UserManager):
     """ Extra functionality for the Userena model. """
 
     def create_user(self, username, email, password, active=False,
-                    send_email=True):
+                    send_email=True, redirect=None):
         """
         A simple wrapper that creates a new :class:`User`.
 
@@ -78,7 +78,7 @@ class UserenaManager(UserManager):
         userena_profile = self.create_userena_profile(new_user)
 
         if send_email:
-            userena_profile.send_activation_email()
+            userena_profile.send_activation_email(redirect=redirect)
 
         return new_user
 
